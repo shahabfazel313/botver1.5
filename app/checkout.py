@@ -44,20 +44,28 @@ def _kb_checkout(oid: int, *, enable_plan: bool = False) -> InlineKeyboardMarkup
     rows.append([InlineKeyboardButton(text="❌ لغو سفارش", callback_data=f"cart:cancel:{oid}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
+def build_order_summary(order: dict) -> str:
+    title = _order_title(order.get("service_category", ""), order.get("service_code", ""))
+    amount = int(order.get("amount_total") or 0)
+    status = _status_fa(order.get("status") or "")
+    lines = [
+        f"📦 <b>{title}</b>",
+        f"شماره سفارش: <code>#{order.get('id')}</code>",
+        f"وضعیت: <b>{status}</b>",
+    ]
+    discount_amount = int(order.get("discount_amount") or 0)
+    if discount_amount:
+        original = int(order.get("amount_original") or amount)
+        lines.append(f"مبلغ قبل از تخفیف: <b>{original} {CURRENCY}</b>")
+        lines.append(f"تخفیف: <b>{discount_amount} {CURRENCY}</b> ({order.get('discount_code') or '—'})")
+    lines.append(f"مبلغ قابل پرداخت: <b>{amount} {CURRENCY}</b>")
+    return "\n".join(lines)
+
 async def send_checkout_prompt(msg: Message, order_id: int):
     o = get_order(order_id)
     if not o:
         await msg.answer("سفارش پیدا نشد.")
         return
-    title = _order_title(o.get("service_category",""), o.get("service_code",""))
-    amount = int(o.get("amount_total") or 0)
-    status = _status_fa(o.get("status") or "")
-    text = (
-        f"📦 <b>{title}</b>\n"
-        f"شماره سفارش: <code>#{o['id']}</code>\n"
-        f"مبلغ: <b>{amount} {CURRENCY}</b>\n"
-        f"وضعیت: <b>{status}</b>\n\n"
-        f"برای ادامه، روش پرداخت را انتخاب کنید:"
-    )
+    text = build_order_summary(o) + "\n\nبرای ادامه، روش پرداخت را انتخاب کنید:"
     enable_plan = o.get("service_category") == "AI"
     await msg.answer(text, reply_markup=_kb_checkout(o["id"], enable_plan=enable_plan))
