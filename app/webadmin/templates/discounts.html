@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>مدیریت کدهای تخفیف</h1>
+<section class="panel">
+    <header>
+        <h2>ایجاد کد تخفیف جدید</h2>
+        <p class="muted">برای هر محصول می‌توانید کد جداگانه ثبت کنید. مبلغ تخفیف از قیمت محصول کسر می‌شود.</p>
+    </header>
+    <table>
+        <thead>
+            <tr>
+                <th>محصول</th>
+                <th>قیمت فعلی ({{ currency }})</th>
+                <th>کد</th>
+                <th>مبلغ تخفیف ({{ currency }})</th>
+                <th>تعداد مجاز</th>
+                <th>تاریخ انقضا</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for variant in variants %}
+            <tr>
+                <td>
+                    <strong>{{ variant.group_title }}</strong>
+                    <div class="muted">{{ variant.display_name }}</div>
+                </td>
+                <td>{{ format_amount(variant.amount) }}</td>
+                <td colspan="5">
+                    <form method="post" action="{{ url_for('discount_create') }}" class="form-inline">
+                        <input type="hidden" name="product_code" value="{{ variant.code }}">
+                        <input type="text" name="code" placeholder="کد" class="input-small">
+                        <input type="number" name="amount" min="1" step="1000" placeholder="مبلغ" required>
+                        <input type="number" name="usage_limit" min="1" placeholder="تعداد" required>
+                        <input type="date" name="expires_on">
+                        <button type="submit" class="btn-primary">ایجاد</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty">محصولی یافت نشد.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <header>
+        <h2>تاریخچه کدهای ثبت‌شده</h2>
+        <p class="muted">وضعیت، جزئیات و کاربران استفاده‌کننده از هر کد را در این بخش مشاهده و ویرایش کنید.</p>
+    </header>
+    <table>
+        <thead>
+            <tr>
+                <th>محصول</th>
+                <th>کد</th>
+                <th>مبلغ تخفیف</th>
+                <th>تعداد مجاز</th>
+                <th>استفاده شده</th>
+                <th>باقیمانده</th>
+                <th>انقضا</th>
+                <th>وضعیت</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for discount in discounts %}
+            <tr class="{{ 'inactive' if not discount.is_active else '' }}">
+                <td>{{ discount.product_code }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('discount_update', discount_id=discount.id) }}" class="form-inline">
+                        <input type="hidden" name="product_code" value="{{ discount.product_code }}">
+                        <input type="text" name="code" value="{{ discount.code }}" required class="input-small">
+                        <input type="number" name="amount" value="{{ discount.amount }}" min="1" step="1000" required>
+                        <input type="number" name="usage_limit" value="{{ discount.usage_limit }}" min="1" required>
+                        <input type="date" name="expires_on" value="{{ discount.expires_value }}">
+                        <button type="submit" class="btn-primary">ذخیره</button>
+                        <button type="submit" class="btn-secondary" formaction="{{ url_for('discount_toggle', discount_id=discount.id) }}" formmethod="post">
+                            {{ 'غیرفعال' if discount.is_active else 'فعال' }}
+                        </button>
+                    </form>
+                </td>
+                <td>{{ format_amount(discount.amount) }}</td>
+                <td>{{ discount.usage_limit }}</td>
+                <td>{{ discount.used_count }}</td>
+                <td>
+                    {% if discount.remaining is none %}
+                        نامحدود
+                    {% else %}
+                        {{ discount.remaining if discount.remaining >= 0 else 0 }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if discount.expires_value %}
+                        <span class="{{ 'warning' if discount.is_expired else '' }}">{{ discount.expires_value }}</span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>{{ 'فعال' if discount.is_active else 'غیرفعال' }}</td>
+                <td>
+                    {% if discount.confirmed_users %}
+                        <div class="muted">کاربران: {{ discount.confirmed_users | join(', ') }}</div>
+                    {% else %}
+                        <span class="muted">استفاده‌کننده تاییدشده ندارد.</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="9">
+                    <div class="history">
+                        <h3>تاریخچه استفاده از کد {{ discount.code }}</h3>
+                        <ul class="list">
+                            {% for item in discount.redemptions %}
+                            <li>
+                                <span>کاربر {{ item.user_id }} — {{ item.status }}</span>
+                                <span>{{ format_amount(item.amount) }} تومان</span>
+                                <span class="muted">ثبت: {{ item.applied_at or '—' }}{% if item.confirmed_at %} | تایید: {{ item.confirmed_at }}{% endif %}</span>
+                            </li>
+                            {% else %}
+                            <li class="empty">استفاده‌ای ثبت نشده است.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="empty">کدی ثبت نشده است.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

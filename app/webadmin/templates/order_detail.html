@@ -2,6 +2,8 @@
 {% block content %}
 {% set account_mode = (order.account_mode or '') %}
 {% set account_mode_label = {'MY_ACCOUNT': 'روی اکانت مشتری', 'PREBUILT': 'اکانت آماده'}.get(account_mode, '—') %}
+{% set discount_amount = order.discount_amount or 0 %}
+{% set amount_original = order.amount_original or order.amount_total or order.price %}
 <h1>مدیریت سفارش #{{ order.id }}</h1>
 <section class="panel">
     <header><h2>اطلاعات سفارش</h2></header>
@@ -14,6 +16,20 @@
             <strong>مبلغ کل</strong>
             <p>{{ format_amount(order.amount_total or order.price) }} تومان</p>
         </div>
+        {% if discount_amount %}
+        <div>
+            <strong>مبلغ قبل از تخفیف</strong>
+            <p>{{ format_amount(amount_original) }} تومان</p>
+        </div>
+        <div>
+            <strong>تخفیف اعمال شده</strong>
+            <p>{{ format_amount(discount_amount) }} تومان</p>
+        </div>
+        <div>
+            <strong>کد تخفیف</strong>
+            <p>{{ order.discount_code or '—' }}</p>
+        </div>
+        {% endif %}
         <div>
             <strong>وضعیت</strong>
             <p><span class="badge {{ order.status|lower }}">{{ order_status_labels.get(order.status, order.status) }}</span></p>
@@ -124,6 +140,13 @@
         <input type="hidden" name="action" value="plan_confirm">
         <p class="span warning">این سفارش در انتظار تایید طرح خرید اول است.</p>
         <button type="submit" class="btn-primary">تایید طرح خرید اول</button>
+    </form>
+    {% endif %}
+
+    {% if (order.payment_type or '') == 'FIRST_PLAN' and order.status == 'DELIVERED' %}
+    <form method="post" action="{{ url_for('first_plan_request', order_id=order.id) }}" class="form-grid">
+        <p class="span warning">با ارسال این درخواست، سفارش دوباره به مرحله پرداخت بازمی‌گردد و به مشتری اطلاع داده می‌شود.</p>
+        <button type="submit" class="btn-primary">درخواست پرداخت طرح اول</button>
     </form>
     {% endif %}
 
